@@ -47,13 +47,26 @@ if [[ "$isopengl" == "Y" || "$isopengl" == 'y' ]]; then
 	ln -s /home/zee/dev/opengl-lib/build/libopengl_utils.a external/
 	ln -s /home/zee/dev/opengl-lib/include/ external/include
 
+	# symlink the imgui lib
+	mkdir -p external/include/imgui external/include/imgui/backends
+	ln -s /home/zee/dev/imgui_lib/include/imgui/*.h external/include/imgui
+	ln -s /home/zee/dev/imgui_lib/include/imgui/backends/*.h external/include/imgui/backends
+	ln -s /home/zee/dev/imgui_lib/libimgui.a external
+
+	# make the external read-only
+	chmod 555 -R a-w external/
+
+	# GLAD.c source file - add it into src folder
+	ln -s /home/zee/archive/GLAD/glad.c src
+	
+
 	# add default makefile
 	cat > Makefile << 'EOF'
 	
 # compiler and flags
 CXX = g++
-CXXFLAGS = -g -I/usr/include -I/usr/include/GLFW -Iexternal/include
-LDFLAGS = -L/usr/lib/ -lGLEW -lglfw -lGL -lm -Lexternal -lopengl_utils
+CXXFLAGS = -g -I/usr/include -I/usr/include/GLFW -Iexternal/include -Iexternal/include/imgui -Iexternal/include/imgui/backends
+LDFLAGS = -L/usr/lib/ -lglfw -lGL -lm -lpthread -lX11 -ldl -Lexternal -lopengl_utils -limgui
 
 # directories
 SRC_DIR = src
@@ -61,9 +74,8 @@ BIN_DIR = bin
 INCLUDE_DIR = include
 
 # source and object files
-SRCS = $(SRC_DIR)/main.cpp 
-
-OBJS = $(patsubst %.cpp,$(BIN_DIR)/%.o,$(notdir $(SRCS)))
+SRCS = $(wildcard $(SRC_DIR)/*.cpp) 
+OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(BIN_DIR)/%.o, $(SRCS))
 
 # executable name
 EXEC = main
@@ -76,7 +88,7 @@ $(EXEC): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $@ $(LDFLAGS)
 
 # pattern rule for compiling .cpp to .o
-$(BIN_DIR)/%.o: $(SRC_DIR)/%.cpp
+$(BIN_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # run the executable
